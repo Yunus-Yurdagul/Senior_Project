@@ -1,0 +1,80 @@
+#include <Servo.h>
+
+Servo horizontal;  // Horizontal servo
+int servoh;        // No preset position
+int servohLimitHigh = 175;
+int servohLimitLow = 5;
+
+Servo vertical;    // Vertical servo
+int servov;        // No preset position
+int servovLimitHigh = 100;
+int servovLimitLow = 1;
+
+// LDR pin connections
+int ldrlt = A0;  // Top left (Bottom Left in physical setup)
+int ldrrt = A1;  // Top right (Bottom Right)
+int ldrld = A2;  // Down left (Top Left)
+int ldrrd = A3;  // Down right (Top Right)
+
+void setup() {
+  Serial.begin(9600);  // For debugging
+  horizontal.attach(9);
+  vertical.attach(10);
+  
+  // No initial movement - servos stay in natural position
+  delay(3000);  // 3-second delay before tracking starts
+}
+
+void loop() {
+  int lt = analogRead(ldrlt);  // Top left
+  int rt = analogRead(ldrrt);  // Top right
+  int ld = analogRead(ldrld);  // Down left
+  int rd = analogRead(ldrrd);  // Down right
+  
+  int dtime = 10;  // Adjustment delay (ms)
+  int tol = 90;    // Tolerance for light difference
+  
+  int avt = (lt + rt) / 2;  // Average top
+  int avd = (ld + rd) / 2;  // Average bottom
+  int avl = (lt + ld) / 2;  // Average left
+  int avr = (rt + rd) / 2;  // Average right
+  
+  int dvert = avt - avd;    // Vertical difference
+  int dhoriz = avl - avr;   // Horizontal difference
+
+  // Debugging output (optional)
+  Serial.print("LT:"); Serial.print(lt);
+  Serial.print(" RT:"); Serial.print(rt);
+  Serial.print(" LD:"); Serial.print(ld);
+  Serial.print(" RD:"); Serial.print(rd);
+  Serial.print(" VertDiff:"); Serial.print(dvert);
+  Serial.print(" HorizDiff:"); Serial.println(dhoriz);
+
+  // Vertical movement
+  if (-1 * tol > dvert || dvert > tol) {
+    if (avt > avd) {  // More light on top → move up
+      servov++;
+      if (servov > servovLimitHigh) servov = servovLimitHigh;
+    } 
+    else if (avt < avd) {  // More light on bottom → move down
+      servov--;
+      if (servov < servovLimitLow) servov = servovLimitLow;
+    }
+    vertical.write(servov);
+  }
+
+  // Horizontal movement
+  if (-1 * tol > dhoriz || dhoriz > tol) {
+    if (avl > avr) {  // More light on left → move left
+      servoh--;
+      if (servoh < servohLimitLow) servoh = servohLimitLow;
+    } 
+    else if (avl < avr) {  // More light on right → move right
+      servoh++;
+      if (servoh > servohLimitHigh) servoh = servohLimitHigh;
+    }
+    horizontal.write(servoh);
+  }
+
+  delay(dtime);  // Small delay between adjustments
+}
