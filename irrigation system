@@ -1,0 +1,148 @@
+#include <LiquidCrystal_I2C.h>
+
+// LCD tanımı (I2C adresi 0x27 olabilir, bazen 0x3F)
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+#define LED_PIN 12
+#define BUTTON_PIN 6
+
+#define LED_PIN_2 13
+#define BUTTON_PIN_2 5
+
+#define LED_PIN_3 11
+#define BUTTON_PIN_3 7
+
+#define ledPin 3
+#define sensorPin A0
+
+#define m1 10
+#define m2 9
+
+#define lm35 A1
+
+byte lastButtonState = LOW;
+byte lastButtonState2 = LOW;
+byte lastButtonState3 = LOW;
+
+unsigned long previousTempMillis = 0;
+const unsigned long tempInterval = 1000;
+
+void setup() {
+  Serial.begin(9600);
+
+  lcd.init();              // LCD başlat
+  lcd.backlight();         // Arka ışığı aç
+
+  pinMode(sensorPin, INPUT);
+  pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, LOW);
+
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+
+  pinMode(LED_PIN_2, OUTPUT);
+  pinMode(BUTTON_PIN_2, INPUT_PULLUP);
+
+  pinMode(LED_PIN_3, OUTPUT);
+  pinMode(BUTTON_PIN_3, INPUT_PULLUP);
+
+  pinMode(m1, OUTPUT);
+  pinMode(m2, OUTPUT);
+
+  digitalWrite(m1, LOW);
+  digitalWrite(m2, LOW);
+}
+
+void loop() {
+  int sensorValue = readSensor();
+  Serial.print("Analog output: ");
+  Serial.println(sensorValue);
+  delay(50);
+
+  // Buton kontrolü
+  byte buttonState = digitalRead(BUTTON_PIN);
+  byte buttonState2 = digitalRead(BUTTON_PIN_2);
+  byte buttonState3 = digitalRead(BUTTON_PIN_3);
+
+  if (buttonState != lastButtonState && buttonState == LOW) {
+    digitalWrite(LED_PIN, HIGH);
+    digitalWrite(LED_PIN_2, LOW);
+    digitalWrite(LED_PIN_3, LOW);
+  }
+  lastButtonState = buttonState;
+
+  if (digitalRead(LED_PIN) == HIGH) {
+    if (sensorValue <= 50) {
+      digitalWrite(m1, HIGH);
+      digitalWrite(m2, LOW);
+    } else {
+      digitalWrite(m1, LOW);
+      digitalWrite(m2, LOW);
+    }
+  }
+
+  if (buttonState2 != lastButtonState2 && buttonState2 == LOW) {
+    digitalWrite(LED_PIN, LOW);
+    digitalWrite(LED_PIN_2, HIGH);
+    digitalWrite(LED_PIN_3, LOW);
+  }
+  lastButtonState2 = buttonState2;
+
+  if (digitalRead(LED_PIN_2) == HIGH) {
+    if (sensorValue <= 100) {
+      digitalWrite(m1, HIGH);
+      digitalWrite(m2, LOW);
+    } else {
+      digitalWrite(m1, LOW);
+      digitalWrite(m2, LOW);
+    }
+  }
+
+  if (buttonState3 != lastButtonState3 && buttonState3 == LOW) {
+    digitalWrite(LED_PIN, LOW);
+    digitalWrite(LED_PIN_2, LOW);
+    digitalWrite(LED_PIN_3, HIGH);
+  }
+  lastButtonState3 = buttonState3;
+
+  if (digitalRead(LED_PIN_3) == HIGH) {
+    if (sensorValue <= 150) {
+      digitalWrite(m1, HIGH);
+      digitalWrite(m2, LOW);
+    } else {
+      digitalWrite(m1, LOW);
+      digitalWrite(m2, LOW);
+    }
+  }
+
+  // === LM35 Sıcaklık Ölçümü ve LCD Yazdırma ===
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousTempMillis >= tempInterval) {
+    previousTempMillis = currentMillis;
+
+    int temp_adc_val = analogRead(lm35);
+    float voltage = (temp_adc_val * 5.0) / 1023.0;
+    float temp_val = voltage / 0.02;  // LM35: 10mV per °C = 0.01V/°C
+
+    // Serial monitöre yazdır
+    Serial.print("Temperature = ");
+    Serial.print(temp_val);
+    Serial.println(" °C");
+
+    // LCD'ye yazdır
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Temp: ");
+    lcd.print(temp_val, 1);  // 1 ondalık basamak
+    lcd.print((char)223);    // Derece sembolü
+    lcd.print("C");
+  }
+}
+
+// === Sensör okuma ve LED parlaklık kontrolü ===
+int readSensor() {
+  int sensorValue = analogRead(sensorPin);
+  int outputValue = map(sensorValue, 0, 1023, 255, 0);
+  analogWrite(ledPin, outputValue);
+  return outputValue;
+}
